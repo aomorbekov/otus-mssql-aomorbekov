@@ -79,21 +79,21 @@ order by Sales_Year, Sales_Month
 Продажи смотреть в таблице Sales.Invoices и связанных таблицах.
 */
 
-SELECT 
+select 
     YEAR(si.InvoiceDate) AS Sales_Year,
     MONTH(si.InvoiceDate) AS Sales_Month,
     wsi.StockItemName,
     SUM(sil.Quantity * sil.UnitPrice) AS SumSales,
     MIN(si.InvoiceDate) AS FirstSaleDate,
     SUM(sil.Quantity) AS TotalQuantity
-FROM Sales.Invoices AS si
-JOIN Sales.InvoiceLines AS sil
-    ON si.InvoiceID = sil.InvoiceID
-JOIN Warehouse.StockItems AS wsi
-    ON sil.StockItemID = wsi.StockItemID
-GROUP BY YEAR(si.InvoiceDate), MONTH(si.InvoiceDate), wsi.StockItemName
-HAVING SUM(sil.Quantity) < 50
-ORDER BY Sales_Year, Sales_Month, wsi.StockItemName;
+from Sales.Invoices AS si
+join Sales.InvoiceLines AS sil
+    on si.InvoiceID = sil.InvoiceID
+join Warehouse.StockItems AS wsi
+    on sil.StockItemID = wsi.StockItemID
+group by YEAR(si.InvoiceDate), MONTH(si.InvoiceDate), wsi.StockItemName
+having SUM(sil.Quantity) < 50
+order by Sales_Year, Sales_Month, wsi.StockItemName;
 
 -- ---------------------------------------------------------------------------
 -- Опционально
