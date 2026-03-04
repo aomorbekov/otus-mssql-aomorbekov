@@ -21,7 +21,7 @@ https://github.com/Microsoft/sql-server-samples/releases/tag/wide-world-importer
 --  2) через WITH (для производных таблиц)
 -- ---------------------------------------------------------------------------
 
-USE WideWorldImporters
+use WideWorldImporters
 
 /*
 1. Выберите сотрудников (Application.People), которые являются продажниками (IsSalesPerson), 
@@ -30,14 +30,65 @@ USE WideWorldImporters
 Продажи смотреть в таблице Sales.Invoices.
 */
 
-TODO: напишите здесь свое решение
+select
+    p.PersonID,
+    p.FullName
+from Application.People as p
+where p.IsSalesperson = 1
+    and p.PersonID not in (
+        select i.SalespersonPersonID
+        from Sales.Invoices as i
+        where i.InvoiceDate = '2015-07-04'
+    )
+order by
+    p.PersonID;
+
+;with sales_on_date as (
+    select distinct
+        i.SalespersonPersonID
+    from Sales.Invoices as i
+    where i.InvoiceDate = '2015-07-04'
+)
+select
+    p.PersonID,
+    p.FullName
+from Application.People as p
+left join sales_on_date as s
+    on s.SalespersonPersonID = p.PersonID
+where p.IsSalesperson = 1
+    and s.SalespersonPersonID is null
+order by
+    p.PersonID;
 
 /*
 2. Выберите товары с минимальной ценой (подзапросом). Сделайте два варианта подзапроса. 
 Вывести: ИД товара, наименование товара, цена.
 */
 
-TODO: напишите здесь свое решение
+select
+    si.StockItemID,
+    si.StockItemName,
+    si.UnitPrice
+from Warehouse.StockItems as si
+where si.UnitPrice = (
+    select min(UnitPrice)
+    from Warehouse.StockItems
+)
+order by
+    si.StockItemID;
+
+select
+    si.StockItemID,
+    si.StockItemName,
+    si.UnitPrice
+from Warehouse.StockItems as si
+inner join (
+    select min(UnitPrice) as MinUnitPrice
+    from Warehouse.StockItems
+) as m
+    on si.UnitPrice = m.MinUnitPrice
+order by
+    si.StockItemID;
 
 /*
 3. Выберите информацию по клиентам, которые перевели компании пять максимальных платежей 
@@ -45,7 +96,65 @@ TODO: напишите здесь свое решение
 Представьте несколько способов (в том числе с CTE). 
 */
 
-TODO: напишите здесь свое решение
+select distinct
+    c.CustomerID,
+    c.CustomerName,
+    ct.TransactionAmount,
+    ct.TransactionDate
+from Sales.Customers as c
+inner join Sales.CustomerTransactions as ct
+    on ct.CustomerID = c.CustomerID
+where ct.TransactionAmount in (
+    select top (5)
+        TransactionAmount
+    from Sales.CustomerTransactions
+    order by
+        TransactionAmount desc
+)
+order by
+    ct.TransactionAmount desc,
+    c.CustomerID;
+
+select
+    c.CustomerID,
+    c.CustomerName,
+    t.TransactionAmount,
+    t.TransactionDate
+from Sales.Customers as c
+inner join (
+    select top (5)
+        CustomerID,
+        TransactionAmount,
+        TransactionDate
+    from Sales.CustomerTransactions
+    order by
+        TransactionAmount desc
+) as t
+    on t.CustomerID = c.CustomerID
+order by
+    t.TransactionAmount desc,
+    c.CustomerID;
+
+;with top_payments as (
+    select top (5)
+        ct.CustomerID,
+        ct.TransactionAmount,
+        ct.TransactionDate
+    from Sales.CustomerTransactions as ct
+    order by
+        ct.TransactionAmount desc
+)
+select
+    c.CustomerID,
+    c.CustomerName,
+    tp.TransactionAmount,
+    tp.TransactionDate
+from top_payments as tp
+inner join Sales.Customers as c
+    on c.CustomerID = tp.CustomerID
+order by
+    tp.TransactionAmount desc,
+    c.CustomerID;
 
 /*
 4. Выберите города (ид и название), в которые были доставлены товары, 
@@ -53,7 +162,55 @@ TODO: напишите здесь свое решение
 который осуществлял упаковку заказов (PackedByPersonID).
 */
 
-TODO: напишите здесь свое решение
+select distinct
+    city.CityID,
+    city.CityName,
+    p.FullName as PackedByPerson
+from Sales.Invoices as i
+inner join Sales.InvoiceLines as il
+    on il.InvoiceID = i.InvoiceID
+inner join Sales.Customers as c
+    on c.CustomerID = i.CustomerID
+inner join Application.Cities as city
+    on city.CityID = c.DeliveryCityID
+left join Application.People as p
+    on p.PersonID = i.PackedByPersonID
+where il.StockItemID in (
+    select top (3)
+        si.StockItemID
+    from Warehouse.StockItems as si
+    order by
+        si.UnitPrice desc
+)
+order by
+    city.CityID,
+    p.FullName;
+
+;with top_items as (
+    select top (3)
+        si.StockItemID
+    from Warehouse.StockItems as si
+    order by
+        si.UnitPrice desc
+)
+select distinct
+    city.CityID,
+    city.CityName,
+    p.FullName as PackedByPerson
+from top_items as ti
+inner join Sales.InvoiceLines as il
+    on il.StockItemID = ti.StockItemID
+inner join Sales.Invoices as i
+    on i.InvoiceID = il.InvoiceID
+inner join Sales.Customers as c
+    on c.CustomerID = i.CustomerID
+inner join Application.Cities as city
+    on city.CityID = c.DeliveryCityID
+left join Application.People as p
+    on p.PersonID = i.PackedByPersonID
+order by
+    city.CityID,
+    p.FullName;
 
 -- ---------------------------------------------------------------------------
 -- Опциональное задание
@@ -92,4 +249,51 @@ ORDER BY TotalSumm DESC
 
 -- --
 
-TODO: напишите здесь свое решение
+/*
+этот запрос показывает счета, дату, продавца, сумму по счету и сумму по собранному заказу.
+
+я упростил его так:
+* вместо подзапроса для продавца сделал join
+* вместо подзапроса для заказа тоже сделал join
+* суммы сначала посчитал в отдельных подзапросах
+
+так запрос проще читать и удобнее сравнивать по statistics io, time
+*/
+
+set statistics io, time on;
+
+select
+    i.InvoiceID,
+    i.InvoiceDate,
+    p.FullName as SalesPersonName,
+    it.TotalSumm as TotalSummByInvoice,
+    ot.TotalSummForPickedItems
+from Sales.Invoices as i
+inner join (
+    select
+        il.InvoiceID,
+        sum(il.Quantity * il.UnitPrice) as TotalSumm
+    from Sales.InvoiceLines as il
+    group by
+        il.InvoiceID
+    having sum(il.Quantity * il.UnitPrice) > 27000
+) as it
+    on it.InvoiceID = i.InvoiceID
+left join Application.People as p
+    on p.PersonID = i.SalespersonPersonID
+left join Sales.Orders as o
+    on o.OrderID = i.OrderID
+    and o.PickingCompletedWhen is not null
+left join (
+    select
+        ol.OrderID,
+        sum(ol.PickedQuantity * ol.UnitPrice) as TotalSummForPickedItems
+    from Sales.OrderLines as ol
+    group by
+        ol.OrderID
+) as ot
+    on ot.OrderID = o.OrderID
+order by
+    it.TotalSumm desc;
+
+set statistics io, time off;
