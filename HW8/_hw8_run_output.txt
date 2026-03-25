@@ -1,0 +1,19 @@
+Changed database context to 'WideWorldImporters'.
+
+(4 rows affected)
+
+(5 rows affected)
+
+(1 rows affected)
+
+(1 rows affected)
+
+(1 rows affected)
+Configuration option 'show advanced options' changed from 0 to 1. Run the RECONFIGURE statement to install.
+Configuration option 'xp_cmdshell' changed from 0 to 1. Run the RECONFIGURE statement to install.
+
+(0 rows affected)
+
+(10 rows affected)
+Configuration option 'xp_cmdshell' changed from 1 to 0. Run the RECONFIGURE statement to install.
+Configuration option 'show advanced options' changed from 1 to 0. Run the RECONFIGURE statement to install.
